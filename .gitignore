@@ -1,0 +1,5 @@
+*.pdf
+*.mp4
+*.wmv
+config.py
+__pycache__/
