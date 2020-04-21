@@ -1,89 +1,118 @@
 from pprint import pprint
 import psycopg2 as pg
-import datetime as dt
 
 
-#create connection
-con = pg.connect(database = 'netology',
-                 user = 'admin',
-                 password = 1234)
+con = pg.connect(database = 'test_db',
+                user = 'admin',
+                password = 1234)
 
-print('connected to the DB secesfuly')
 cur = con.cursor()
-print('cursor created secesfully')
-
-student_1 = {'name':'Alex', 'gpa':5, 'birth':dt.datetime(1985, 12, 11)}
-student_2 = {'name':'Den', 'gpa':3, 'birth':dt.datetime(1986, 5, 30)}
-
-students_list = [
-    {'name':'Alex', 'gpa':4, 'birth':dt.datetime(1995, 5, 10)},
-    {'name':'Nik', 'gpa':4, 'birth':dt.datetime(1986, 10, 27)},
-    {'name':'Bob', 'gpa':3, 'birth':dt.datetime(1989, 7, 25)}
-]
 
 
-# создает таблицы
-def create_db(): 
-    cur.execute("""
-        CREATE TABLE if not exists Student(
-                id serial PRIMARY KEY not null,
-                name varchar(100) not null,
-                gpa numeric(10,2),
-                birth timestamp with time zone
+a_single_student = {'name':'Sergey', 'gpa':4.8, 'birth':'1988-01-31'}
+students_list = [{'name':'Pavel', 'gpa':5.3, 'birth':'1987-05-23'},
+                 {'name':'Anton', 'gpa':5.8, 'birth':'1985-12-9'},
+                 {'name':'Denis', 'gpa':4.0, 'birth':'1986-05-30'}]
+
+
+# создаем таблицы
+def create_db():
+    cur.execute('''
+        CREATE TABLE if not exists student
+            (
+                id SERIAL PRIMARY KEY,
+                name varchar(100) NOT NULL,
+                gpa numeric(10, 2),
+                birth timestamp with time zone        
             );
-        CREATE TABLE if not exists Course(
-                id serial PRIMARY KEY not null,
-                name varchar(100) not null
-            );        
-        CREATE TABLE if not exists Course_name(
-                id serial PRIMARY KEY not null,
-                student_id INTEGER REFERENCES student(id),
-                course_id INTEGER REFERENCES course(id)
+        
+        CREATE TABLE if not exists course
+            (
+                id SERIAL PRIMARY KEY,
+                name varchar(100) NOT NULL
             );
-    """)
+
+        CREATE TABLE if not exists course_name
+            (
+                id SERIAL PRIMARY KEY,
+                student_id INT REFERENCES student(id),
+                course_id INT REFERENCES course(id)
+            )
+        ''')
     con.commit()
 
 
-# получаем студентов
+# возвращает студентов определенного курса
 def get_students(course_id): 
-    cur.execute("select name from Student where id=%s", (course_id))
-    pprint(cur.fetchall())
+    cur.execute('''
+        SELECT student_id
+        FROM course_name
+        WHERE course_id = %s
+    ''', (course_id,))
+    temporary_students_list = cur.fetchall()
+    print(f'\nвывод информации по всем студентам с курса №{course_id}')
+    for i in temporary_students_list:
+        cur.execute('''
+            SELECT name, gpa
+            FROM student
+            WHERE id=%s
+        ''', (i,))
+        student_info = cur.fetchall()
+        print(student_info)
 
 
 # создает студентов и записывает их на курс
 def add_students(course_id, students):
-    cur.execute("insert into Course values (default, %s);", (course_id))
-    con.commit()
+    cur.execute('INSERT INTO course VALUES(default, %s)', (course_id))        
 
     for student in students:
-        cur.execute("""
-            insert into Student (name,  gpa, birth) 
-            values(%s, %s, %s)""",
-            (student['name'], student['gpa'], student['birth']))
+        cur.execute('''
+            INSERT INTO student
+            VALUES
+            (default, %s, %s, %s)
+        ''', (student['name'], student['gpa'], student['birth']))
         con.commit()
 
-        cur.execute("select id from Student where name=%s;", (student['name'],))
-        fetch_name = cur.fetchall()
-
-        cur.execute("insert into Course_name values (default, %s, %s);", (fetch_name[0], course_id))
+        cur.execute('''
+            SELECT id
+            FROM student
+            WHERE name=%s
+        ''', (student['name'],))
+        student_id = cur.fetchall()
+        cur.execute('''
+            INSERT INTO course_name
+            VALUES
+            (default, %s, %s)
+        ''', (student_id[0], course_id))
         con.commit()
 
 
 # просто создает студента
 def add_student(student): 
-    cur.execute("insert into Student (name, gpa, birth) values(%s, %s, %s);",
-               (student['name'], student['gpa'], student['birth']))
+    cur.execute('''
+        INSERT INTO student
+        VALUES
+        (default, %s, %s, %s)
+    ''', (student['name'], student['gpa'], student['birth']))
     con.commit()
 
 
-#получаем имя студента по его id
+# получаем данные студента
 def get_student(student_id):
-    cur.execute("select name from Student where id=%s", (student_id))
+    cur.execute('''
+        SELECT name, gpa
+        FROM student
+        WHERE id = %s
+    ''',(student_id,))
+    student = cur.fetchall()
+    con.commit()
+    print(f'вывод одного студента:\n{student}')
 
 
 if __name__ == '__main__':
     create_db()
     add_students('1', students_list)
-    add_student(student_1)
-    get_student('3')
-    get_students('1')
+    add_student(a_single_student)
+    get_student('1')
+    get_students(1)
+    con.close()
