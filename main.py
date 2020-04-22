@@ -3,7 +3,7 @@ import psycopg2 as pg
 
 
 con = pg.connect(database = 'test_db',
-                user = 'admin',
+                user = 'test',
                 password = 1234)
 
 cur = con.cursor()
@@ -44,21 +44,15 @@ def create_db():
 
 # возвращает студентов определенного курса
 def get_students(course_id): 
-    cur.execute('''
-        SELECT student_id
-        FROM course_name
-        WHERE course_id = %s
-    ''', (course_id,))
-    temporary_students_list = cur.fetchall()
-    print(f'\nвывод информации по всем студентам с курса №{course_id}')
-    for i in temporary_students_list:
-        cur.execute('''
-            SELECT name, gpa
-            FROM student
-            WHERE id=%s
-        ''', (i,))
-        student_info = cur.fetchall()
-        print(student_info)
+    cur.execute("""
+                SELECT name 
+                FROM student
+                INNER JOIN Course_name
+                ON student.id=course_name.student_id
+                WHERE course_name.course_id=%s;
+            """, course_id)
+    print('\nвывод всех студентов с указанного курса')
+    print(cur.fetchall())
 
 
 # создает студентов и записывает их на курс
@@ -114,5 +108,5 @@ if __name__ == '__main__':
     add_students('1', students_list)
     add_student(a_single_student)
     get_student('1')
-    get_students(1)
+    get_students('1')
     con.close()
