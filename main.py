@@ -47,7 +47,7 @@ def get_students(course_id):
     cur.execute("""
                 SELECT name 
                 FROM student
-                INNER JOIN Course_name
+                INNER JOIN course_name
                 ON student.id=course_name.student_id
                 WHERE course_name.course_id=%s;
             """, course_id)
